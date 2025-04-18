@@ -1,0 +1,12 @@
+# flux/image-automation/mlflow-policy.yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: mlflow-policy
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: mlflow
+  policy:
+    semver:
+      range: ">=1.0.0"

@@ -1,0 +1,9 @@
+# flux/image-automation/mlflow-image.yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: mlflow
+  namespace: flux-system
+spec:
+  interval: 1m
+  image: yourregistry/mlflow

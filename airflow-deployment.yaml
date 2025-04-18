@@ -1,0 +1,57 @@
+# airflow-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow
+  namespace: homelab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow
+  template:
+    metadata:
+      labels:
+        app: airflow
+    spec:
+      containers:
+      - name: airflow
+        image: apache/airflow:latest-python3.12
+        command: ["/bin/bash", "-c"]
+        args:
+          - >
+            airflow db upgrade &&
+            airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com &&
+            airflow webserver
+        env:
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "LocalExecutor"
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://user:password@postgres:5432/airflow"
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow
+  namespace: homelab
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+  selector:
+    app: airflow

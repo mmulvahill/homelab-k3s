@@ -1,0 +1,14 @@
+# flux/image-automation/mlflow-update.yaml
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: mlflow-update
+  namespace: flux-system
+spec:
+  interval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: homelab-config
+  update:
+    path: "./clusters/homelab/mlflow-deployment.yaml"
+    strategy: Setters

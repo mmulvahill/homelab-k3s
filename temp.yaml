@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: homelab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:v2.20.1
+        # Run the MLFlow tracking server with Postgres as the backend store.
+        command:
+          - "mlflow"
+          - "server"
+          - "--backend-store-uri"
+          - "postgresql+psycopg2://user:password@postgres:5432/mlflow"
+          - "--default-artifact-root"
+          - "/mlflow/artifacts"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "5000"
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        # Optional: persist MLFlow artifacts. In production, replace emptyDir with a PVC.
+        - name: mlflow-data
+          mountPath: /mlflow
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+      volumes:
+      - name: mlflow-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: homelab
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5000
+    targetPort: 5000
+  selector:
+    app: mlflow
