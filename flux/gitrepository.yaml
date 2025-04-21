@@ -6,5 +6,5 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: "https://github.com/your-github-username/your-gitops-repo.git"
+  url: "https://github.com/mmulvahill/homelab-k3s.git"
   branch: main

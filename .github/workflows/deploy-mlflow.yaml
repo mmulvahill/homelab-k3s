@@ -31,26 +31,26 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Clone GitOps repo on Maroon Bells
+      - name: Clone homelab-k3s repo on Maroon Bells
         run: |
-          GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone ssh://${{ secrets.SERVER_USER }}@${{ secrets.MAROONBELLS_HOST }}:/home/${{ secrets.SERVER_USER }}/gitops.git gitops
+          GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone ssh://${{ secrets.SERVER_USER }}@${{ secrets.MAROONBELLS_HOST }}:/home/${{ secrets.SERVER_USER }}/homelab-k3s.git homelab-k3s
 
-      - name: Copy K8s manifests to GitOps repo
+      - name: Copy K8s manifests to homelab-k3s repo
         run: |
           # Create target directory if it doesn't exist
-          mkdir -p gitops/clusters/homelab
+          mkdir -p homelab-k3s/clusters/homelab
           
-          # Copy all deployment files to GitOps repo
-          cp *.yaml gitops/clusters/homelab/
+          # Copy all deployment files to homelab-k3s repo
+          cp *.yaml homelab-k3s/clusters/homelab/
           
           # Copy flux directory if needed
           if [ -d "flux" ]; then
-            cp -r flux gitops/clusters/homelab/
+            cp -r flux homelab-k3s/clusters/homelab/
           fi
 
       - name: Commit and Push Changes to Maroon Bells
         run: |
-          cd gitops
+          cd homelab-k3s
           git config user.email "ci-bot@example.com"
           git config user.name "CI Bot"
           git add clusters/homelab/
