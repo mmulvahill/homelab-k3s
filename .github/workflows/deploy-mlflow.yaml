@@ -1,5 +1,5 @@
 # .github/workflows/deploy-mlflow.yaml
-name: Build and Deploy MLflow
+name: Deploy to Maroon Bells
 
 on:
   push:
@@ -7,37 +7,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-push:
+  deploy-to-maroonbells:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Application Code
         uses: actions/checkout@v3
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and Push MLflow Image
-        id: build_push
-        run: |
-          IMAGE_TAG=${{ github.sha }}
-          docker build -t yourregistry/mlflow:$IMAGE_TAG -f src/mlflow/Dockerfile .
-          docker push yourregistry/mlflow:$IMAGE_TAG
-          echo "::set-output name=image_tag::$IMAGE_TAG"
-
-  deploy-to-maroonbells:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
       - name: Connect to Tailscale
         uses: tailscale/github-action@v3
         with:
@@ -59,16 +34,24 @@ jobs:
         run: |
           GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone ssh://${{ secrets.SERVER_USER }}@${{ secrets.MAROONBELLS_HOST }}:/home/${{ secrets.SERVER_USER }}/gitops.git gitops
 
-      - name: Update MLflow Deployment Image
+      - name: Copy K8s manifests to GitOps repo
         run: |
-          IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-          yq e '.spec.template.spec.containers[] |= select(.name == "mlflow") .image = "yourregistry/mlflow:'"$IMAGE_TAG"'"' -i gitops/clusters/homelab/mlflow-deployment.yaml
+          # Create target directory if it doesn't exist
+          mkdir -p gitops/clusters/homelab
+          
+          # Copy all deployment files to GitOps repo
+          cp *.yaml gitops/clusters/homelab/
+          
+          # Copy flux directory if needed
+          if [ -d "flux" ]; then
+            cp -r flux gitops/clusters/homelab/
+          fi
 
       - name: Commit and Push Changes to Maroon Bells
         run: |
           cd gitops
           git config user.email "ci-bot@example.com"
           git config user.name "CI Bot"
-          git add clusters/homelab/mlflow-deployment.yaml
-          git commit -m "Update MLflow image to $IMAGE_TAG"
+          git add clusters/homelab/
+          git commit -m "Update homelab manifests from GitHub Actions"
           git push origin main
