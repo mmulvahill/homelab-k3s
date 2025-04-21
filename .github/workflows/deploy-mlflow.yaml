@@ -33,28 +33,41 @@ jobs:
           docker push yourregistry/mlflow:$IMAGE_TAG
           echo "::set-output name=image_tag::$IMAGE_TAG"
 
-  update-manifests:
+  deploy-to-maroonbells:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout GitOps Manifests
-        uses: actions/checkout@v3
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v3
         with:
-          repository: your-github-username/your-gitops-repo
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: gitops
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          tags: tag:ci
+          use-cache: 'true'
+
+      - name: Disable SSH host key checking
+        run: |
+          mkdir -p ~/.ssh
+          echo -e "Host *\n\tStrictHostKeyChecking no\n" > ~/.ssh/config
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Clone GitOps repo on Maroon Bells
+        run: |
+          GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone ssh://${{ secrets.SERVER_USER }}@${{ secrets.MAROONBELLS_HOST }}:/home/${{ secrets.SERVER_USER }}/gitops.git gitops
 
       - name: Update MLflow Deployment Image
         run: |
           IMAGE_TAG=${{ needs.build-and-push.outputs.image_tag }}
-          # Using yq (install with apt-get install -y yq) to update the manifest:
           yq e '.spec.template.spec.containers[] |= select(.name == "mlflow") .image = "yourregistry/mlflow:'"$IMAGE_TAG"'"' -i gitops/clusters/homelab/mlflow-deployment.yaml
 
-      - name: Commit and Push Changes
+      - name: Commit and Push Changes to Maroon Bells
         run: |
           cd gitops
-          git config --global user.email "ci-bot@example.com"
-          git config --global user.name "CI Bot"
+          git config user.email "ci-bot@example.com"
+          git config user.name "CI Bot"
           git add clusters/homelab/mlflow-deployment.yaml
           git commit -m "Update MLflow image to $IMAGE_TAG"
-          git push
+          git push origin main
